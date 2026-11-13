@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "152535738030",
+    "project_id": "wematch-app-2611",
+    "storage_bucket": "wematch-app-2611.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:152535738030:android:31d7f58ad86b58920a6f3f",
+        "android_client_info": {
+          "package_name": "com.wematch.wematch_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "152535738030-osqg7s3i9h7skhj6rof24t7i0t2gujmg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wematch.wematch_app",
+            "certificate_hash": "19773e73cea9038c46ae5e317d1f9623ebec3034"
+          }
+        },
+        {
+          "client_id": "152535738030-maq55sjrqlhsn6bfjd4h7dg1k0u1i36u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCx8g--MCTnJTcZmwrW1tTPjDNZ2jvuKSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "152535738030-maq55sjrqlhsn6bfjd4h7dg1k0u1i36u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
