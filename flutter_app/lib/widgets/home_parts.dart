@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../state.dart';
+import '../screens/location_screen.dart';
 import '../screens/profile_screen.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -14,18 +15,25 @@ class HomeHeader extends StatelessWidget {
       listenable: session,
       builder: (context, _) => Row(
         children: [
+          Padding(padding: const EdgeInsets.only(right: 10), child: Image.asset('assets/logo_mark.png', height: 28)),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.bolt, size: 16, color: goldLight),
-                    Text('9 minutes', style: ts(15, w: FontWeight.w700)),
-                  ],
-                ),
-                Text('Other · ${session.city.toLowerCase()},kerala ⌄', style: ts(9, c: const Color(0xFFD0D0D0))),
-              ],
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => LocationScreen.open(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: goldLight),
+                      const SizedBox(width: 2),
+                      Flexible(child: Text(session.city, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(15, w: FontWeight.w700))),
+                      const Icon(Icons.keyboard_arrow_down, size: 18),
+                    ],
+                  ),
+                  Text(session.hasAddress ? session.addressLines.first : 'Tap to change location', maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(9, c: const Color(0xFFD0D0D0))),
+                ],
+              ),
             ),
           ),
           Container(

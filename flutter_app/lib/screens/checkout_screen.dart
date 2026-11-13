@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'address_screen.dart';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
@@ -31,6 +32,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _pay() async {
     if (cart.lines.isEmpty || _placing) return;
+    if (!session.hasAddress) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('Add a delivery address first', style: ts(13, c: Colors.black))));
+      return AddressScreen.open(context);
+    }
     final paid = rupees(cart.payable);
     final via = _methodLabel;
     setState(() => _placing = true);
@@ -226,7 +233,7 @@ class _AddressCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text('Delivery Address', style: ts(12, w: FontWeight.w500)),
               const Spacer(),
-              GestureDetector(onTap: () => comingSoon(context), child: Text('Change / Add', style: ts(11, c: orange))),
+              GestureDetector(onTap: () => AddressScreen.open(context), child: Text(session.hasAddress ? 'Change' : 'Add', style: ts(11, c: orange))),
             ],
           ),
           const SizedBox(height: 12),
@@ -260,6 +267,7 @@ class _AddressCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    if (!session.hasAddress) Text('No address added yet', style: ts(13, c: muted, h: 1.7)),
                     for (final l in session.addressLines) Text(l, style: ts(13, h: 1.7)),
                   ],
                 ),

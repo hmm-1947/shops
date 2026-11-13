@@ -33,7 +33,7 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: AuthService.changes,
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        if (snap.connectionState == ConnectionState.waiting) return Scaffold(body: Center(child: Image.asset('assets/logo_mark.png', width: 140)));
         final user = snap.data;
         return ListenableBuilder(
           listenable: session,

@@ -3,6 +3,7 @@ import '../auth.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
+import 'address_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -127,7 +128,7 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     Text('Account', style: ts(14, w: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    _Row(const Icon(Icons.location_on_outlined, size: 20), 'Address', small: true, onTap: () => comingSoon(context)),
+                    _Row(const Icon(Icons.location_on_outlined, size: 20), 'Address', small: true, trailing: session.hasAddress ? session.addressLabel : 'Add', trailingColor: orange, onTap: () => AddressScreen.open(context)),
                     _Row(const Icon(Icons.credit_card, size: 20), 'Payment Methods', small: true, onTap: () => comingSoon(context)),
                     _Row(const Icon(Icons.account_balance_wallet_outlined, size: 20), 'Credits', small: true, trailing: '₹0', trailingColor: green, onTap: () => comingSoon(context)),
                     _Row(const Icon(Icons.notifications_none, size: 20), 'Notification Preferences', small: true, onTap: () => comingSoon(context)),

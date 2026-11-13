@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../api.dart';
 import '../models.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/product_card.dart';
 import '../widgets/ui.dart';
 import 'product_list_screen.dart';
 import 'search_results_screen.dart';
@@ -21,11 +23,150 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
+  Timer? _debounce;
+  List<String> _sugg = [];
+  List<ProductCardData> _prods = [];
+  bool _busy = false;
+  bool _failed = false;
+  int _seq = 0;
+
+  String get _q => _ctrl.text.trim();
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(_onChanged);
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _ctrl.dispose();
     super.dispose();
+  }
+
+  void _onChanged() {
+    _debounce?.cancel();
+    final q = _q;
+    if (q.isEmpty) {
+      _seq++;
+      setState(() {
+        _sugg = [];
+        _prods = [];
+        _busy = false;
+        _failed = false;
+      });
+      return;
+    }
+    setState(() => _busy = true);
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      final n = ++_seq;
+      try {
+        final r = await Api.suggest(q);
+        if (!mounted || n != _seq) return;
+        setState(() {
+          _sugg = r.$1;
+          _prods = r.$2;
+          _busy = false;
+          _failed = false;
+        });
+      } catch (_) {
+        if (mounted && n == _seq) {
+          setState(() {
+            _busy = false;
+            _failed = true;
+          });
+        }
+      }
+    });
+  }
+
+  Widget _results() {
+    if (_busy && _sugg.isEmpty && _prods.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_failed) return Center(child: Text('Could not load suggestions', style: ts(13, c: muted)));
+    final low = _q.toLowerCase();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(15, 4, 15, 24),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      children: [
+        for (final s in _sugg)
+          InkWell(
+            onTap: () => _run(s),
+            child: Container(
+              height: 46,
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFF242424)))),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, size: 20, color: muted),
+                  const SizedBox(width: 14),
+                  Expanded(child: _highlight(s, low)),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _fill(s),
+                    child: const Padding(padding: EdgeInsets.only(left: 12), child: Icon(Icons.north_west, size: 18, color: muted)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_prods.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Text('Products', style: ts(15, w: FontWeight.w600)),
+          const SizedBox(height: 8),
+          for (final p in _prods)
+            InkWell(
+              onTap: () {
+                session.addRecent(_q);
+                openProduct(context, p.id);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    ClipRRect(borderRadius: BorderRadius.circular(8), child: SizedBox(width: 56, height: 56, child: AppImage(p.image))),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (p.brand != null) Text(p.brand!, style: ts(10, c: gold)),
+                          Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: ts(13, w: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(rupees(p.variant.price), style: ts(13, w: FontWeight.w700, c: gold)),
+                        if (p.variant.discount > 0) Text(rupees(p.variant.mrp), style: ts(10, c: muted, d: TextDecoration.lineThrough)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+        if (!_busy && _sugg.isEmpty && _prods.isEmpty) Padding(padding: const EdgeInsets.only(top: 40), child: Center(child: Text('No matches for "$_q"', style: ts(13, c: muted)))),
+      ],
+    );
+  }
+
+  Widget _highlight(String s, String low) {
+    final i = s.toLowerCase().indexOf(low);
+    if (i < 0 || low.isEmpty) return Text(s, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(13));
+    return Text.rich(
+      TextSpan(
+        style: ts(13, c: muted),
+        children: [
+          TextSpan(text: s.substring(0, i)),
+          TextSpan(text: s.substring(i, i + low.length), style: ts(13, w: FontWeight.w700)),
+          TextSpan(text: s.substring(i + low.length)),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 
   void _fill(String q) {
@@ -85,7 +226,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             Expanded(
-              child: ListView(
+              child: _q.isNotEmpty ? _results() : ListView(
                 padding: const EdgeInsets.fromLTRB(15, 8, 15, 24),
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 children: [

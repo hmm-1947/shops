@@ -23,7 +23,8 @@ export default function login(app) {
           }
         },
       },
-      h('h1', {}, 'WeMatch Admin'),
+      h('img', { class: 'login-logo', src: 'img/logo.png', alt: 'WeMatch' }),
+      h('h1', {}, 'Admin sign in'),
       field('Email', email),
       field('Password', password),
       btn,

@@ -44,6 +44,28 @@ r.get('/products', async (req, res) => {
   res.json(await listProducts({ where: where.join(' AND ') || '1 = 1', params, ...paging(req.query) }));
 });
 
+r.get('/search/suggest', async (req, res) => {
+  const q = String(req.query.q ?? '').trim().slice(0, 60);
+  if (!q) return res.json({ suggestions: [], products: [] });
+  const like = '%' + q.replace(/[\\%_]/g, (c) => '\\' + c) + '%';
+  const [found, brands, subs, cats] = await Promise.all([
+    listProducts({ where: "p.name LIKE ?", params: [like], limit: 8 }),
+    db.prepare('SELECT name FROM brands WHERE enabled = 1 AND name LIKE ? ORDER BY name LIMIT 4').all(like),
+    db.prepare('SELECT name FROM subcategories WHERE enabled = 1 AND name LIKE ? ORDER BY name LIMIT 4').all(like),
+    db.prepare('SELECT name FROM categories WHERE enabled = 1 AND name LIKE ? ORDER BY name LIMIT 4').all(like),
+  ]);
+  const low = q.toLowerCase();
+  const seen = new Set();
+  const names = [...cats, ...subs, ...brands, ...found.items].map((x) => x.name).filter((n) => {
+    const k = n.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  names.sort((a, b) => Number(b.toLowerCase().startsWith(low)) - Number(a.toLowerCase().startsWith(low)));
+  res.json({ suggestions: names.slice(0, 8), products: found.items.slice(0, 6) });
+});
+
 r.get('/products/:id', async (req, res) => {
   const p = await productDetail(pid(req.params.id));
   if (!p) throw new HttpError(404, 'Not found');

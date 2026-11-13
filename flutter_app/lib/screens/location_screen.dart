@@ -16,6 +16,8 @@ const _maxKm = 150.0;
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
 
+  static Future<void> open(BuildContext context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LocationScreen()));
+
   @override
   State<LocationScreen> createState() => _LocationScreenState();
 }
@@ -24,6 +26,17 @@ class _LocationScreenState extends State<LocationScreen> {
   bool _useLocation = true;
   bool _busy = false;
   String? _city;
+  final _custom = TextEditingController();
+
+  @override
+  void dispose() {
+    _custom.dispose();
+    super.dispose();
+  }
+
+  void _finish() {
+    if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
 
   void _say(String m) {
     ScaffoldMessenger.of(context)
@@ -62,6 +75,7 @@ class _LocationScreenState extends State<LocationScreen> {
         return;
       }
       await AuthService.saveCity(best);
+      _finish();
     } catch (_) {
       _say('Could not get your location. Please choose your city');
       if (mounted) setState(() => _useLocation = false);
@@ -73,9 +87,11 @@ class _LocationScreenState extends State<LocationScreen> {
   Future<void> _continue() async {
     if (_busy) return;
     if (_useLocation) return _detect();
-    final c = _city;
-    if (c == null) return _say('Select a city to continue');
+    final typed = _custom.text.trim();
+    final c = typed.isNotEmpty ? typed : _city;
+    if (c == null) return _say('Enter or select a city to continue');
     await AuthService.saveCity(c);
+    _finish();
   }
 
   @override
@@ -88,6 +104,7 @@ class _LocationScreenState extends State<LocationScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 children: [
+                  if (Navigator.of(context).canPop()) const Align(alignment: Alignment.centerLeft, child: BackCircle()),
                   Center(child: Image.asset('assets/logo.png', width: 150)),
                   const SizedBox(height: 14),
                   Text('Select Your', style: ts(30, w: FontWeight.w700, h: 1.15)),
@@ -123,6 +140,36 @@ class _LocationScreenState extends State<LocationScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  Center(child: Text('Type Your City / Area', style: ts(11, c: const Color(0xFFD0D0D0)))),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 50,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(8), border: Border.all(color: _custom.text.trim().isNotEmpty ? orange : const Color(0xFF222222))),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_location_alt_outlined, color: goldLight, size: 22),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: TextField(
+                            controller: _custom,
+                            maxLength: 60,
+                            style: ts(13),
+                            cursorColor: orange,
+                            textInputAction: TextInputAction.done,
+                            decoration: InputDecoration(border: InputBorder.none, isCollapsed: true, counterText: '', hintText: 'e.g. Edappally, Kochi', hintStyle: ts(13, c: muted)),
+                            onChanged: (v) => setState(() {
+                              if (v.trim().isNotEmpty) {
+                                _useLocation = false;
+                                _city = null;
+                              }
+                            }),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Center(child: Text('Or Choose Your City', style: ts(11, c: const Color(0xFFD0D0D0)))),
                   const SizedBox(height: 12),
                   for (final c in _cities)
@@ -130,6 +177,7 @@ class _LocationScreenState extends State<LocationScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: GestureDetector(
                         onTap: () => setState(() {
+                          _custom.clear();
                           _city = c.$1;
                           _useLocation = false;
                         }),

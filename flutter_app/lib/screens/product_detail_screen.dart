@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../api.dart';
 import '../models.dart';
+import '../state.dart';
+import '../widgets/product_card.dart';
+import 'cart_screen.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -35,6 +39,15 @@ class _BodyState extends State<_Body> {
   Widget build(BuildContext context) {
     final p = widget.p;
     final v = p.variants[_selected];
+    return Column(
+      children: [
+        Expanded(child: _content(p, v)),
+        _bar(p, v),
+      ],
+    );
+  }
+
+  Widget _content(ProductDetail p, Variant v) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
@@ -42,11 +55,7 @@ class _BodyState extends State<_Body> {
           aspectRatio: 1,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: PageView.builder(
-              itemCount: p.images.length,
-              onPageChanged: (i) => setState(() => _image = i),
-              itemBuilder: (_, i) => AppImage(p.images[i]),
-            ),
+            child: PageView.builder(itemCount: p.images.length, onPageChanged: (i) => setState(() => _image = i), itemBuilder: (_, i) => AppImage(p.images[i])),
           ),
         ),
         if (p.images.length > 1)
@@ -66,19 +75,32 @@ class _BodyState extends State<_Body> {
             ),
           ),
         const SizedBox(height: 16),
-        if (p.brand != null) Text(p.brand!, style: const TextStyle(color: gold, fontWeight: FontWeight.w600)),
+        if (p.brand != null)
+          Text(
+            p.brand!,
+            style: const TextStyle(color: gold, fontWeight: FontWeight.w600),
+          ),
         Text(p.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         Text('${p.category} / ${p.subcategory}', style: const TextStyle(color: muted, fontSize: 12)),
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(rupees(v.price), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: gold)),
+            Text(
+              rupees(v.price),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: gold),
+            ),
             if (v.discount > 0) ...[
               const SizedBox(width: 8),
-              Text(rupees(v.mrp), style: const TextStyle(color: muted, decoration: TextDecoration.lineThrough)),
+              Text(
+                rupees(v.mrp),
+                style: const TextStyle(color: muted, decoration: TextDecoration.lineThrough),
+              ),
               const SizedBox(width: 8),
-              Text('${percent(v.discount)} OFF', style: const TextStyle(color: gold, fontWeight: FontWeight.w600)),
+              Text(
+                '${percent(v.discount)} OFF',
+                style: const TextStyle(color: gold, fontWeight: FontWeight.w600),
+              ),
             ],
           ],
         ),
@@ -115,13 +137,109 @@ class _BodyState extends State<_Body> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 2, child: Text(k, style: const TextStyle(color: muted))),
+                  Expanded(
+                    flex: 2,
+                    child: Text(k, style: const TextStyle(color: muted)),
+                  ),
                   Expanded(flex: 3, child: Text(val)),
                 ],
               ),
             ),
         ],
       ],
+    );
+  }
+
+  Widget _bar(ProductDetail p, Variant v) {
+    final card = ProductCardData(p.id, p.name, p.brand, p.images.isEmpty ? null : p.images.first, v);
+    return ListenableBuilder(
+      listenable: cart,
+      builder: (context, _) {
+        final i = cart.lines.indexWhere((l) => l.product.id == p.id && l.variant.id == v.id);
+        final line = i >= 0 ? cart.lines[i] : null;
+        Widget btn(IconData icon, VoidCallback onTap) => InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 20, color: Colors.black),
+          ),
+        );
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          decoration: const BoxDecoration(
+            color: surface,
+            border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                if (line == null)
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: gold,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                        ),
+                        onPressed: () => addToCart(context, card, v),
+                        icon: const Icon(Icons.shopping_cart_outlined, size: 20),
+                        label: Text(
+                          'Add to cart · ${rupees(v.price)}',
+                          style: ts(14, w: FontWeight.w600, c: Colors.black),
+                        ),
+                      ),
+                    ),
+                  )
+                else ...[
+                  Container(
+                    height: 48,
+                    decoration: BoxDecoration(color: gold, borderRadius: BorderRadius.circular(26)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        btn(Icons.remove, () => cart.setQty(line, line.qty - 1)),
+                        SizedBox(
+                          width: 32,
+                          child: Center(
+                            child: Text(
+                              '${line.qty}',
+                              style: ts(15, w: FontWeight.w700, c: Colors.black),
+                            ),
+                          ),
+                        ),
+                        btn(Icons.add, () => cart.setQty(line, line.qty + 1)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: gold,
+                          side: const BorderSide(color: gold),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                        ),
+                        onPressed: () => CartScreen.open(context),
+                        child: Text(
+                          'View cart (${cart.count})',
+                          style: ts(14, w: FontWeight.w600, c: gold),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

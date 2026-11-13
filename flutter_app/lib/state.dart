@@ -56,9 +56,9 @@ final cart = CartStore();
 class Session extends ChangeNotifier {
   String phone = '';
   String city = 'Kochi';
-  String name = 'Ranjith ravi';
+  String name = 'Guest';
   String addressLabel = 'Home';
-  final addressLines = <String>['4th Cross, 7th Main,', 'Koramangala 4th Block,', 'Bengaluru - 560034,', 'Karnataka'];
+  List<String> addressLines = [];
   final recents = <String>['Lakme lipstick', 'Maybelline foundation', 'Swiss beauty eyeliner'];
 
   String get shortName {
@@ -79,7 +79,7 @@ class Session extends ChangeNotifier {
   void adopt(String? displayName, String? mail) {
     email = mail ?? '';
     final n = (displayName ?? '').trim();
-    if (n.isNotEmpty) {
+    if (n.isNotEmpty && !nameEdited) {
       name = n;
     } else if (email.contains('@')) {
       name = email.split('@').first;
@@ -100,6 +100,40 @@ class Session extends ChangeNotifier {
 
   void setCity(String c) {
     city = c;
+    notifyListeners();
+  }
+
+  bool nameEdited = false;
+
+  void loadAddress(String? label, String? n, String? ph, List<String>? lines) {
+    if (label != null && label.isNotEmpty) addressLabel = label;
+    if (n != null && n.isNotEmpty) {
+      name = n;
+      nameEdited = true;
+    }
+    if (ph != null) phone = ph;
+    if (lines != null) addressLines = lines;
+  }
+
+  void clearAddress() {
+    addressLabel = 'Home';
+    addressLines = [];
+    phone = '';
+    name = 'Guest';
+    nameEdited = false;
+    notifyListeners();
+  }
+
+  bool get hasAddress => addressLines.isNotEmpty;
+
+  void setAddress({required String label, required String fullName, required String phoneNo, required List<String> lines}) {
+    addressLabel = label;
+    if (fullName.isNotEmpty) {
+      name = fullName;
+      nameEdited = true;
+    }
+    phone = phoneNo;
+    addressLines = lines;
     notifyListeners();
   }
 

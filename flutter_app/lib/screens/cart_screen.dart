@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/ui.dart';
 import 'checkout_screen.dart';
+import 'location_screen.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -63,13 +64,16 @@ class CartScreen extends StatelessWidget {
                           children: [
                             Text('My Cart (${cart.count})', style: ts(20, w: FontWeight.w700)),
                             const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on_outlined, size: 14, color: muted),
-                                const SizedBox(width: 4),
-                                Text(session.city, style: ts(11, c: const Color(0xFFD0D0D0))),
-                                const Icon(Icons.keyboard_arrow_down, size: 16, color: muted),
-                              ],
+                            GestureDetector(
+                              onTap: () => LocationScreen.open(context),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.location_on_outlined, size: 14, color: muted),
+                                  const SizedBox(width: 4),
+                                  Text(session.city, style: ts(11, c: const Color(0xFFD0D0D0))),
+                                  const Icon(Icons.keyboard_arrow_down, size: 16, color: muted),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 12),
                             const DeliveryProgress(),

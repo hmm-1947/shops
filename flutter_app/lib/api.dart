@@ -27,6 +27,11 @@ class Api {
   static Future<PageResult> itemClassProducts(int id, int page) async =>
       _page(await _get('/item-classes/$id/products', {'page': '$page', 'limit': '20'}));
 
+  static Future<(List<String>, List<ProductCardData>)> suggest(String q) async {
+    final j = await _get('/search/suggest', {'q': q});
+    return ((j['suggestions'] as List).cast<String>(), (j['products'] as List).map((e) => ProductCardData.fromJson(e)).toList());
+  }
+
   static Future<ProductDetail> product(int id) async => ProductDetail.fromJson(await _get('/products/$id'));
 
   static Future<int> placeOrder({
