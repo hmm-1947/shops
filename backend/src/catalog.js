@@ -21,17 +21,14 @@ const card = (r) => ({
   variant: { id: r.vid, name: r.vname, ...finalPrice(r.price, discountFor(r.vd, r.cd, r.bd)) },
 });
 
-export function listProducts({ join = '', where = '1 = 1', params = [], order = 'p.id DESC', limit = 20, offset = 0 }) {
-  const total = db.prepare(`SELECT COUNT(*) AS n ${FROM} ${join} WHERE ${LIVE} AND ${where}`).get(...params).n;
-  const items = db
-    .prepare(`SELECT ${COLS} ${FROM} ${join} WHERE ${LIVE} AND ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
-    .all(...params, limit, offset)
-    .map(card);
-  return { items, total };
+export async function listProducts({ join = '', where = '1 = 1', params = [], order = 'p.id DESC', limit = 20, offset = 0 }) {
+  const total = (await db.prepare(`SELECT COUNT(*) AS n ${FROM} ${join} WHERE ${LIVE} AND ${where}`).get(...params)).n;
+  const rows = await db.prepare(`SELECT ${COLS} ${FROM} ${join} WHERE ${LIVE} AND ${where} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...params, limit, offset);
+  return { items: rows.map(card), total };
 }
 
-export function productDetail(id) {
-  const p = db
+export async function productDetail(id) {
+  const p = await db
     .prepare(
       `SELECT p.id, p.name, p.description, p.specifications, b.name AS brand, b.discount AS bd,
         c.id AS category_id, c.name AS category, c.discount AS cd, s.id AS subcategory_id, s.name AS subcategory
@@ -47,10 +44,8 @@ export function productDetail(id) {
   return {
     ...rest,
     specifications: JSON.parse(specifications),
-    images: db.prepare('SELECT path FROM product_images WHERE product_id = ? ORDER BY position, id').all(id).map((i) => i.path),
-    variants: db
-      .prepare('SELECT id, name, price, discount, is_default FROM variants WHERE product_id = ? ORDER BY is_default DESC, id')
-      .all(id)
+    images: (await db.prepare('SELECT path FROM product_images WHERE product_id = ? ORDER BY position, id').all(id)).map((i) => i.path),
+    variants: (await db.prepare('SELECT id, name, price, discount, is_default FROM variants WHERE product_id = ? ORDER BY is_default DESC, id').all(id))
       .map((v) => ({ id: v.id, name: v.name, is_default: !!v.is_default, ...finalPrice(v.price, discountFor(v.discount, cd, bd)) })),
   };
 }

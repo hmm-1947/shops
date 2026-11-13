@@ -5,7 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { db } from '../src/db.js';
 import { config } from '../src/config.js';
 
-if (db.prepare('SELECT COUNT(*) AS n FROM categories').get().n > 0 && !process.argv.includes('--force')) {
+if ((await db.prepare('SELECT COUNT(*) AS n FROM categories').get()).n > 0 && !process.argv.includes('--force')) {
   console.log('Catalog is not empty. Nothing seeded. Use --force to add demo data anyway.');
   process.exit(0);
 }
@@ -70,22 +70,22 @@ let ci = 0;
 for (const [cat, subs] of Object.entries(taxonomy)) {
   const [c1, c2] = pick(ci);
   const img = await art(cat, 400, 400, c1, c2, '#E9B93F');
-  ids.cat[cat] = Number(db.prepare('INSERT INTO categories(name, image, discount) VALUES(?, ?, 0)').run(cat, img).lastInsertRowid);
+  ids.cat[cat] = Number((await db.prepare('INSERT INTO categories(name, image, discount) VALUES(?, ?, 0)').run(cat, img)).lastInsertRowid);
   for (const [j, s] of subs.entries()) {
     const [a, b] = pick(j + ci);
     const simg = await art(s, 300, 300, a, b, '#f3e6c4');
-    ids.sub[s] = Number(db.prepare('INSERT INTO subcategories(category_id, name, image) VALUES(?, ?, ?)').run(ids.cat[cat], s, simg).lastInsertRowid);
+    ids.sub[s] = Number((await db.prepare('INSERT INTO subcategories(category_id, name, image) VALUES(?, ?, ?)').run(ids.cat[cat], s, simg)).lastInsertRowid);
   }
   ci++;
 }
 
 for (const [i, b] of brands.entries()) {
   const img = await art(b, 300, 300, ...pick(i), '#ffffff', 40);
-  ids.brand[b] = Number(db.prepare('INSERT INTO brands(name, image, discount) VALUES(?, ?, 0)').run(b, img).lastInsertRowid);
+  ids.brand[b] = Number((await db.prepare('INSERT INTO brands(name, image, discount) VALUES(?, ?, 0)').run(b, img)).lastInsertRowid);
 }
 
 for (const [i, [name, sub, brand, mrp, disc]] of products.entries()) {
-  const pr = db
+  const pr = await db
     .prepare('INSERT INTO products(name, subcategory_id, brand_id, description, specifications, status) VALUES(?, ?, ?, ?, ?, ?)')
     .run(
       name,
@@ -99,11 +99,11 @@ for (const [i, [name, sub, brand, mrp, disc]] of products.entries()) {
   ids.product[name] = pid;
   for (let k = 0; k < 3; k++) {
     const img = await art(name, 800, 800, ...pick(i + k), '#f3e6c4', 52);
-    db.prepare('INSERT INTO product_images(product_id, path, position) VALUES(?, ?, ?)').run(pid, img, k);
+    await db.prepare('INSERT INTO product_images(product_id, path, position) VALUES(?, ?, ?)').run(pid, img, k);
   }
-  db.prepare('INSERT INTO variants(product_id, name, price, discount, is_default) VALUES(?, ?, ?, ?, 1)').run(pid, 'Default', mrp * 100, disc);
+  await db.prepare('INSERT INTO variants(product_id, name, price, discount, is_default) VALUES(?, ?, ?, ?, 1)').run(pid, 'Default', mrp * 100, disc);
   if (sub === 'Makeup' || sub === 'Skincare') {
-    db.prepare('INSERT INTO variants(product_id, name, price, discount, is_default) VALUES(?, ?, ?, ?, 0)').run(pid, 'Large', Math.round(mrp * 1.5) * 100, disc);
+    await db.prepare('INSERT INTO variants(product_id, name, price, discount, is_default) VALUES(?, ?, ?, ?, 0)').run(pid, 'Large', Math.round(mrp * 1.5) * 100, disc);
   }
 }
 
@@ -111,23 +111,27 @@ const banners = [];
 for (const [i, t] of ['Match Your Style', 'Flat 25% OFF', 'New Arrivals', 'Festive Edit'].entries()) {
   banners.push(await art(t, 1000, 500, ...pick(i), '#E9B93F', 64));
 }
-const car = Number(db.prepare('INSERT INTO carousels(name) VALUES(?)').run('Home banner').lastInsertRowid);
-banners.forEach((img, i) => db.prepare('INSERT INTO carousel_images(carousel_id, image, position) VALUES(?, ?, ?)').run(car, img, i));
+const car = Number((await db.prepare('INSERT INTO carousels(name) VALUES(?)').run('Home banner')).lastInsertRowid);
+for (const [i, img] of banners.entries()) await db.prepare('INSERT INTO carousel_images(carousel_id, image, position) VALUES(?, ?, ?)').run(car, img, i);
 
-const section = (name, display, columns, after, type, mapId, pos) =>
+const section = async (name, display, columns, after, type, mapId, pos) =>
   Number(
-    db
-      .prepare('INSERT INTO item_classes(name, display, columns, view_all_after, map_type, map_id, position) VALUES(?, ?, ?, ?, ?, ?, ?)')
-      .run(name, display, columns, after, type, mapId, pos).lastInsertRowid,
+    (
+      await db
+        .prepare('INSERT INTO item_classes(name, display, columns, view_all_after, map_type, map_id, position) VALUES(?, ?, ?, ?, ?, ?, ?)')
+        .run(name, display, columns, after, type, mapId, pos)
+    ).lastInsertRowid,
   );
 
-const picks = (cls, names) =>
-  names.forEach((n, i) => db.prepare('INSERT INTO item_class_products(item_class_id, product_id, position) VALUES(?, ?, ?)').run(cls, ids.product[n], i));
+const picks = async (cls, names) => {
+  for (const [i, n] of names.entries()) await db.prepare('INSERT INTO item_class_products(item_class_id, product_id, position) VALUES(?, ?, ?)').run(cls, ids.product[n], i);
+};
 
-section('Banner', 'scroll', 2, 6, 'carousel', car, 1);
-picks(section('Trending Products', 'scroll', 4, 6, 'products', null, 2), ["Men's Sneakers", 'Premium Perfume', 'Block Heels', 'Necklace', 'Gold Earrings']);
-picks(section('Buy Again', 'list', 4, 4, 'products', null, 3), ['Matte Lipstick', 'Face Cream', 'Perfume', "Men's Sneakers"]);
-picks(section('Recommended for You', 'list', 4, 4, 'products', null, 4), ['Face Cream', 'Matte Lipstick', "Men's Sneakers", 'Perfume']);
-picks(section('Trending Now', 'list', 4, 4, 'products', null, 5), ['Gold Earrings', 'Necklace', 'Women Sandals', 'Silver Ring']);
+await section('Banner', 'scroll', 2, 6, 'carousel', car, 1);
+await picks(await section('Trending Products', 'scroll', 4, 6, 'products', null, 2), ["Men's Sneakers", 'Premium Perfume', 'Block Heels', 'Necklace', 'Gold Earrings']);
+await picks(await section('Buy Again', 'list', 4, 4, 'products', null, 3), ['Matte Lipstick', 'Face Cream', 'Perfume', "Men's Sneakers"]);
+await picks(await section('Recommended for You', 'list', 4, 4, 'products', null, 4), ['Face Cream', 'Matte Lipstick', "Men's Sneakers", 'Perfume']);
+await picks(await section('Trending Now', 'list', 4, 4, 'products', null, 5), ['Gold Earrings', 'Necklace', 'Women Sandals', 'Silver Ring']);
 
 console.log('Demo catalog seeded:', Object.keys(ids.cat).join(', '));
+process.exit(0);

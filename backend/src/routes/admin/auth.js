@@ -20,7 +20,7 @@ const loginSchema = z.object({
 
 r.post('/login', limiter, async (req, res) => {
   const { email, password } = parse(loginSchema, req.body);
-  const admin = db.prepare('SELECT * FROM admins WHERE email = ?').get(email);
+  const admin = await db.prepare('SELECT * FROM admins WHERE email = ?').get(email);
   const now = Date.now();
   const ok = await bcrypt.compare(password, admin?.password_hash ?? dummyHash);
 
@@ -30,12 +30,12 @@ r.post('/login', limiter, async (req, res) => {
     if (admin) {
       const fails = admin.failed_attempts + 1;
       const locked = fails >= MAX_FAILS;
-      db.prepare('UPDATE admins SET failed_attempts = ?, locked_until = ? WHERE id = ?').run(locked ? 0 : fails, locked ? now + LOCK_MS : 0, admin.id);
+      await db.prepare('UPDATE admins SET failed_attempts = ?, locked_until = ? WHERE id = ?').run(locked ? 0 : fails, locked ? now + LOCK_MS : 0, admin.id);
     }
     return res.status(401).json({ error: 'Invalid email or password' });
   }
 
-  db.prepare('UPDATE admins SET failed_attempts = 0, locked_until = 0 WHERE id = ?').run(admin.id);
+  await db.prepare('UPDATE admins SET failed_attempts = 0, locked_until = 0 WHERE id = ?').run(admin.id);
   res.cookie(COOKIE, signToken(admin.id), cookieOptions).json({ email: admin.email });
 });
 
@@ -43,8 +43,8 @@ r.post('/logout', (req, res) => {
   res.clearCookie(COOKIE, { ...cookieOptions, maxAge: undefined }).json({ ok: true });
 });
 
-r.get('/me', requireAdmin, (req, res) => {
-  const admin = db.prepare('SELECT email FROM admins WHERE id = ?').get(req.admin.sub);
+r.get('/me', requireAdmin, async (req, res) => {
+  const admin = await db.prepare('SELECT email FROM admins WHERE id = ?').get(req.admin.sub);
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
   res.json(admin);
 });

@@ -11,10 +11,14 @@ if (password.length < 12 || password.length > 72 || !/[a-z]/.test(password) || !
   throw new Error('ADMIN_PASSWORD must be 12-72 chars with upper, lower and a digit');
 }
 
-db.prepare(
-  `INSERT INTO admins(email, password_hash) VALUES(?, ?)
-   ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, failed_attempts = 0, locked_until = 0`,
-).run(email, await bcrypt.hash(password, 12));
+await db
+  .prepare(
+    `INSERT INTO admins(email, password_hash) VALUES(?, ?)
+     ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), failed_attempts = 0, locked_until = 0`,
+  )
+  .run(email, await bcrypt.hash(password, 12));
 
 console.log('Admin saved:', email);
+if (generated) console.log('Generated password (shown once):', generated);
+process.exit(0);
 if (generated) console.log('Generated password (shown once):', generated);

@@ -31,54 +31,59 @@ const LINE = `SELECT v.id AS variant_id, v.name AS variant_name, v.price, v.disc
 const r = Router();
 r.use(requireCustomer);
 
-r.post('/', (req, res) => {
+r.post('/', async (req, res) => {
   const b = parse(schema, req.body);
   const merged = new Map();
   for (const i of b.items) merged.set(i.variant_id, Math.min(20, (merged.get(i.variant_id) ?? 0) + i.qty));
-  const lines = [...merged].map(([variantId, qty]) => {
-    const row = db.prepare(LINE).get(variantId);
+  const lines = [];
+  for (const [variantId, qty] of merged) {
+    const row = await db.prepare(LINE).get(variantId);
     if (!row) throw new HttpError(400, 'An item in your cart is no longer available');
-    return { ...row, qty, ...finalPrice(row.price, discountFor(row.vd, row.cd, row.bd)) };
-  });
+    lines.push({ ...row, qty, ...finalPrice(row.price, discountFor(row.vd, row.cd, row.bd)) });
+  }
   const subtotal = lines.reduce((a, l) => a + l.price * l.qty, 0);
   const fee = subtotal >= FREE_DELIVERY_AT ? 0 : DELIVERY_FEE;
-  const id = tx(() => {
-    const orderId = db
-      .prepare(
-        `INSERT INTO orders(uid, customer_name, customer_email, phone, city, address, payment_method, subtotal, delivery_fee, total)
-         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        req.customer.uid,
-        b.address.name || req.customer.name,
-        req.customer.email,
-        b.phone,
-        b.city,
-        JSON.stringify(b.address),
-        b.payment_method,
-        subtotal,
-        fee,
-        subtotal + fee,
-      ).lastInsertRowid;
+  const id = await tx(async (c) => {
+    const orderId = (
+      await c
+        .prepare(
+          `INSERT INTO orders(uid, customer_name, customer_email, phone, city, address, payment_method, subtotal, delivery_fee, total)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          req.customer.uid,
+          b.address.name || req.customer.name,
+          req.customer.email,
+          b.phone,
+          b.city,
+          JSON.stringify(b.address),
+          b.payment_method,
+          subtotal,
+          fee,
+          subtotal + fee,
+        )
+    ).lastInsertRowid;
     for (const l of lines) {
-      db.prepare(
-        `INSERT INTO order_items(order_id, product_id, variant_id, product_name, brand, variant_name, image, mrp, discount, price, qty)
-         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(orderId, l.product_id, l.variant_id, l.product_name, l.brand, l.variant_name, l.image, l.mrp, l.discount, l.price, l.qty);
+      await c
+        .prepare(
+          `INSERT INTO order_items(order_id, product_id, variant_id, product_name, brand, variant_name, image, mrp, discount, price, qty)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(orderId, l.product_id, l.variant_id, l.product_name, l.brand, l.variant_name, l.image, l.mrp, l.discount, l.price, l.qty);
     }
     return orderId;
   });
   res.status(201).json({ id, subtotal, delivery_fee: fee, total: subtotal + fee, status: 'placed' });
 });
 
-r.get('/', (req, res) => {
-  res.json(db.prepare('SELECT id, total, status, payment_method, created_at FROM orders WHERE uid = ? ORDER BY id DESC LIMIT 100').all(req.customer.uid));
+r.get('/', async (req, res) => {
+  res.json(await db.prepare('SELECT id, total, status, payment_method, created_at FROM orders WHERE uid = ? ORDER BY id DESC LIMIT 100').all(req.customer.uid));
 });
 
-r.get('/:id', (req, res) => {
-  const o = db.prepare('SELECT * FROM orders WHERE id = ? AND uid = ?').get(pid(req.params.id), req.customer.uid);
+r.get('/:id', async (req, res) => {
+  const o = await db.prepare('SELECT * FROM orders WHERE id = ? AND uid = ?').get(pid(req.params.id), req.customer.uid);
   if (!o) throw new HttpError(404, 'Not found');
-  res.json({ ...o, address: JSON.parse(o.address), items: db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(o.id) });
+  res.json({ ...o, address: JSON.parse(o.address), items: await db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(o.id) });
 });
 
 export default r;

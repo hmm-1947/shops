@@ -15,7 +15,14 @@ export const config = {
   prod: process.env.NODE_ENV === 'production',
   jwtSecret,
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? '',
-  dbFile: process.env.DB_FILE ?? join(root, 'data', 'wematch.db'),
+  mysql: {
+    host: process.env.MYSQL_HOST ?? '127.0.0.1',
+    port: Number(process.env.MYSQL_PORT ?? 3306),
+    user: process.env.MYSQL_USER ?? 'wematch',
+    password: process.env.MYSQL_PASSWORD ?? '',
+    database: process.env.MYSQL_DATABASE ?? 'wematch',
+  },
+  sqliteFile: process.env.DB_FILE ?? join(root, 'data', 'wematch.db'),
   uploadDir: join(root, 'uploads'),
   adminDir: join(root, 'admin'),
 };

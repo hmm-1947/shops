@@ -28,9 +28,9 @@ export function errorHandler(err, req, res, next) {
   if (err.type === 'entity.parse.failed' || err.type === 'entity.too.large') {
     return res.status(400).json({ error: 'Invalid request body' });
   }
-  const m = String(err.message);
-  if (m.includes('UNIQUE')) return res.status(409).json({ error: 'Already exists' });
-  if (m.includes('FOREIGN KEY')) return res.status(409).json({ error: 'Invalid or in-use reference' });
+  if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Already exists' });
+  if (['ER_ROW_IS_REFERENCED_2', 'ER_NO_REFERENCED_ROW_2'].includes(err.code)) return res.status(409).json({ error: 'Invalid or in-use reference' });
+  if (['ER_CHECK_CONSTRAINT_VIOLATED', 'ER_DATA_TOO_LONG', 'ER_WARN_DATA_OUT_OF_RANGE', 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD'].includes(err.code)) return res.status(400).json({ error: 'Invalid value' });
   console.error(err);
   res.status(500).json({ error: 'Server error' });
 }
