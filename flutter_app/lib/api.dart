@@ -1,0 +1,60 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'auth.dart';
+import 'config.dart';
+import 'models.dart';
+
+class Api {
+  static final _client = http.Client();
+
+  static Future<dynamic> _get(String path, [Map<String, String>? query]) async {
+    final uri = Uri.parse('$apiBase/api/v1$path').replace(queryParameters: query);
+    final r = await _client.get(uri).timeout(const Duration(seconds: 15));
+    if (r.statusCode != 200) throw Exception('Request failed (${r.statusCode})');
+    return jsonDecode(utf8.decode(r.bodyBytes));
+  }
+
+  static PageResult _page(dynamic j) =>
+      PageResult((j['items'] as List).map((e) => ProductCardData.fromJson(e)).toList(), j['total']);
+
+  static Future<List<Section>> home() async => ((await _get('/home'))['sections'] as List).map((e) => Section.fromJson(e)).toList();
+
+  static Future<List<Category>> categories() async => ((await _get('/categories')) as List).map((e) => Category.fromJson(e)).toList();
+
+  static Future<PageResult> products(Map<String, String> filters, int page) async =>
+      _page(await _get('/products', {...filters, 'page': '$page', 'limit': '20'}));
+
+  static Future<PageResult> itemClassProducts(int id, int page) async =>
+      _page(await _get('/item-classes/$id/products', {'page': '$page', 'limit': '20'}));
+
+  static Future<ProductDetail> product(int id) async => ProductDetail.fromJson(await _get('/products/$id'));
+
+  static Future<int> placeOrder({
+    required List<(int, int)> items,
+    required String method,
+    required String city,
+    required String phone,
+    required String addressLabel,
+    required String name,
+    required List<String> addressLines,
+  }) async {
+    final token = await AuthService.idToken();
+    if (token == null) throw Exception('Please sign in to place an order');
+    final r = await _client
+        .post(
+          Uri.parse('$apiBase/api/v1/orders'),
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+          body: jsonEncode({
+            'items': [for (final i in items) {'variant_id': i.$1, 'qty': i.$2}],
+            'payment_method': method,
+            'city': city,
+            'phone': phone,
+            'address': {'label': addressLabel, 'name': name, 'lines': addressLines},
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+    final j = jsonDecode(utf8.decode(r.bodyBytes));
+    if (r.statusCode != 201) throw Exception(j is Map && j['error'] != null ? j['error'].toString() : 'Could not place order');
+    return j['id'] as int;
+  }
+}
