@@ -10,7 +10,10 @@ import 'location_screen.dart';
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
-  static Future<void> open(BuildContext context) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+  static Future<void> open(BuildContext context) {
+    cart.loadCharges();
+    return Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+  }
 
   Future<void> _clear(BuildContext context) async {
     final ok = await showDialog<bool>(

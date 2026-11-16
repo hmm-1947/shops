@@ -15,7 +15,7 @@ r.get('/', async (req, res) => {
   const total = (await db.prepare(`SELECT COUNT(*) AS n FROM orders ${where}`).get(...args)).n;
   const items = await db
     .prepare(
-      `SELECT o.id, o.customer_name, o.customer_email, o.phone, o.city, o.payment_method, o.total, o.status, o.created_at,
+      `SELECT o.id, o.customer_name, o.customer_email, o.phone, o.city, o.payment_method, o.total, o.latitude, o.longitude, o.distance_km, o.delivery_mode, o.status, o.created_at,
         (SELECT COALESCE(SUM(qty), 0) FROM order_items WHERE order_id = o.id) AS item_count
        FROM orders o ${where} ORDER BY o.id DESC LIMIT ? OFFSET ?`,
     )
@@ -27,7 +27,7 @@ r.get('/', async (req, res) => {
 r.get('/:id', async (req, res) => {
   const o = await db.prepare('SELECT * FROM orders WHERE id = ?').get(pid(req.params.id));
   if (!o) throw new HttpError(404, 'Not found');
-  res.json({ ...o, address: JSON.parse(o.address), items: await db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(o.id) });
+  res.json({ ...o, address: JSON.parse(o.address), charges: JSON.parse(o.charges), items: await db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(o.id) });
 });
 
 r.patch('/:id/status', async (req, res) => {

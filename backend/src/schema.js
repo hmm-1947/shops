@@ -27,6 +27,7 @@ export const schema = [
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(80) NOT NULL UNIQUE,
     image VARCHAR(255) NOT NULL,
+    banner VARCHAR(255) NULL,
     discount DECIMAL(5,2) NOT NULL DEFAULT 0,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     CHECK (discount BETWEEN 0 AND 100)
@@ -109,8 +110,13 @@ export const schema = [
     payment_method ENUM('upi', 'card', 'net', 'wallet', 'cod') NOT NULL,
     subtotal BIGINT NOT NULL,
     delivery_fee INT NOT NULL,
+    charges_total BIGINT NOT NULL DEFAULT 0,
+    charges TEXT NOT NULL DEFAULT ('[]'),
     total BIGINT NOT NULL,
-    status ENUM('placed', 'confirmed', 'packed', 'out_for_delivery', 'delivered', 'cancelled') NOT NULL DEFAULT 'placed',
+    latitude DECIMAL(10,7) NULL,
+    longitude DECIMAL(10,7) NULL,
+    distance_km DECIMAL(8,2) NULL,
+    delivery_mode ENUM('in_house', 'courier') NULL,
     created_at INT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
     KEY idx_orders_uid (uid),
     KEY idx_orders_status (status, created_at)
@@ -131,4 +137,26 @@ export const schema = [
     CHECK (qty > 0),
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS charges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(80) NOT NULL,
+    value DECIMAL(10,2) NOT NULL,
+    type ENUM('fixed', 'percent') NOT NULL DEFAULT 'fixed',
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    CHECK (value >= 0)
+  )`,
+  `CREATE TABLE IF NOT EXISTS settings (
+    k VARCHAR(60) PRIMARY KEY,
+    v VARCHAR(255) NOT NULL
+  )`,
+];
+
+export const columnMigrations = [
+  ['orders', 'charges_total', 'BIGINT NOT NULL DEFAULT 0'],
+  ['orders', 'charges', "TEXT NOT NULL DEFAULT ('[]')"],
+  ['orders', 'latitude', 'DECIMAL(10,7) NULL'],
+  ['orders', 'longitude', 'DECIMAL(10,7) NULL'],
+  ['orders', 'distance_km', 'DECIMAL(8,2) NULL'],
+  ['orders', 'delivery_mode', "ENUM('in_house', 'courier') NULL"],
+  ['brands', 'banner', 'VARCHAR(255) NULL'],
 ];

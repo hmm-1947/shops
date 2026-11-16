@@ -7,6 +7,9 @@ import mappings from './mappings.js';
 import carousels from './carousels.js';
 import itemClasses from './itemClasses.js';
 import orders from './orders.js';
+import charges from './charges.js';
+import warehouse from './warehouse.js';
+import displayBrand from './displayBrand.js';
 
 const r = Router();
 
@@ -23,11 +26,14 @@ r.use(
     listSql: 'SELECT s.*, c.name AS category_name FROM subcategories s JOIN categories c ON c.id = s.category_id ORDER BY c.name, s.name',
   }),
 );
-r.use('/brands', taxonomy({ table: 'brands', discount: true, listSql: 'SELECT * FROM brands ORDER BY name' }));
+r.use('/brands', taxonomy({ table: 'brands', discount: true, banner: true, listSql: 'SELECT * FROM brands ORDER BY name' }));
 r.use('/products', products);
 r.use('/mappings', mappings);
 r.use('/carousels', carousels);
 r.use('/item-classes', itemClasses);
 r.use('/orders', orders);
+r.use('/charges', charges);
+r.use('/warehouse', warehouse);
+r.use('/display-brand', displayBrand);
 
 export default r;

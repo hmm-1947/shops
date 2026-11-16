@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../state.dart';
 import '../screens/cart_screen.dart';
+import '../screens/orders_screen.dart';
+import '../screens/product_list_screen.dart';
+import '../api.dart';
+import 'common.dart';
 import '../theme.dart';
 
 const dockColor = Color(0xF0E2D9D5);
@@ -33,27 +37,25 @@ class BottomDock extends StatelessWidget {
                     _DockItem(Icons.home_filled, 'Home', index == 0, () => onTap(0)),
                     _DockItem(Icons.grid_view_outlined, 'Categories', index == 1, () => onTap(1)),
                     _DockItem(Icons.local_cafe_outlined, 'Cafe', index == 2, () => onTap(2)),
-                    Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: Text("L'OREAL", style: ts(5.5, w: FontWeight.w700, c: dockInk)),
-                    ),
+                    const _DockBrand(),
                   ],
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              width: dockHeight + 2,
-              height: dockHeight + 2,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF0E5A1E),
-                border: Border.all(color: const Color(0xFF1F7A33), width: 2),
+            GestureDetector(
+              onTap: () => OrdersScreen.open(context),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: dockHeight + 2,
+                height: dockHeight + 2,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF0E5A1E),
+                  border: Border.all(color: const Color(0xFF1F7A33), width: 2),
+                ),
+                child: const Icon(Icons.delivery_dining, color: Colors.white, size: 28),
               ),
-              child: const Icon(Icons.delivery_dining, color: Colors.white, size: 28),
             ),
           ],
         ),
@@ -145,6 +147,58 @@ class FreeDeliveryPill extends StatelessWidget {
             ],
           ),
         ));
+      },
+    );
+  }
+}
+
+class _DockBrand extends StatelessWidget {
+  const _DockBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<DisplayBrand?>(
+      valueListenable: displayBrand,
+      builder: (context, b, _) {
+        if (b == null) return const SizedBox.shrink();
+        return Expanded(
+          flex: 4,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProductListScreen(
+                  title: b.name,
+                  header: b.banner == null
+                      ? null
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                          child: ClipRRect(borderRadius: BorderRadius.circular(12), child: AspectRatio(aspectRatio: 16 / 7, child: AppImage(b.banner))),
+                        ),
+                  loader: (p, _) => Api.products({'brand_id': '${b.id}'}, p),
+                ),
+              ),
+            ),
+            child: SizedBox(
+              height: 46,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    clipBehavior: Clip.antiAlias,
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: ClipOval(child: AppImage(b.image, fit: BoxFit.contain)),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(b.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(8.5, w: FontWeight.w500, c: dockInk)),
+                ],
+              ),
+            ),
+          ),
+        );
       },
     );
   }

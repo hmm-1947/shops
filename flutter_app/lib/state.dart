@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'models.dart';
+import 'api.dart';
 
 class CartLine {
   CartLine(this.product, this.variant, this.qty);
@@ -15,13 +16,25 @@ class CartStore extends ChangeNotifier {
   static const deliveryFee = 2500;
 
   final lines = <CartLine>[];
+  List<Charge> charges = [];
+
+  Future<void> loadCharges() async {
+    try {
+      charges = await Api.charges();
+      notifyListeners();
+    } catch (_) {}
+  }
 
   int get count => lines.fold(0, (a, l) => a + l.qty);
   int get total => lines.fold(0, (a, l) => a + l.variant.price * l.qty);
   int get mrpTotal => lines.fold(0, (a, l) => a + l.variant.mrp * l.qty);
   int get savings => mrpTotal - total;
   int get fee => lines.isEmpty || total >= freeDeliveryAt ? 0 : deliveryFee;
-  int get payable => total + fee;
+  List<Charge> get appliedCharges => lines.isEmpty ? const [] : charges;
+  int get chargesTotal => appliedCharges.fold(0, (a, c) => a + c.amountFor(total));
+
+  int get payable => total + fee + chargesTotal;
+
   int get remaining => max(0, freeDeliveryAt - total);
   double get progress => min(1.0, total / freeDeliveryAt);
 
@@ -52,6 +65,15 @@ class CartStore extends ChangeNotifier {
 }
 
 final cart = CartStore();
+
+final displayBrand = ValueNotifier<DisplayBrand?>(null);
+
+Future<void> loadDisplayBrand() async {
+  try {
+    displayBrand.value = await Api.displayBrand();
+  } catch (_) {}
+}
+
 
 class Session extends ChangeNotifier {
   String phone = '';

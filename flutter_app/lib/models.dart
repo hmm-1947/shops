@@ -118,3 +118,77 @@ class ProductDetail {
   final List<String> images;
   final List<Variant> variants;
 }
+
+class Charge {
+  Charge.fromJson(Map<String, dynamic> j)
+      : name = j['name'],
+        value = (j['value'] as num).toDouble(),
+        percent = j['type'] == 'percent';
+
+  final String name;
+  final double value;
+  final bool percent;
+
+  int amountFor(int subtotal) => percent ? (subtotal * value / 100).round() : (value * 100).round();
+}
+
+class OrderItem {
+  OrderItem.fromJson(Map<String, dynamic> j)
+      : name = [j['brand'], j['product_name']].where((e) => e != null && e.toString().isNotEmpty).join(' '),
+        variant = j['variant_name'] ?? '',
+        image = j['image'],
+        price = j['price'],
+        qty = j['qty'];
+
+  final String name;
+  final String variant;
+  final String? image;
+  final int price;
+  final int qty;
+}
+
+class Order {
+  Order.fromJson(Map<String, dynamic> j)
+      : id = j['id'],
+        status = j['status'],
+        payment = j['payment_method'],
+        createdAt = j['created_at'],
+        subtotal = j['subtotal'],
+        deliveryFee = j['delivery_fee'],
+        chargesTotal = j['charges_total'] ?? 0,
+        total = j['total'],
+        city = j['city'] ?? '',
+        addressLabel = (j['address'] as Map?)?['label'] ?? '',
+        addressLines = ((j['address'] as Map?)?['lines'] as List?)?.cast<String>() ?? const [],
+        charges = ((j['charges'] as List?) ?? const []).map((e) => (e['name'] as String, e['amount'] as int)).toList(),
+        items = ((j['items'] as List?) ?? const []).map((e) => OrderItem.fromJson(e)).toList();
+
+  final int id;
+  final String status;
+  final String payment;
+  final int createdAt;
+  final int subtotal;
+  final int deliveryFee;
+  final int chargesTotal;
+  final int total;
+  final String city;
+  final String addressLabel;
+  final List<String> addressLines;
+  final List<(String, int)> charges;
+  final List<OrderItem> items;
+
+  int get itemCount => items.fold(0, (a, i) => a + i.qty);
+}
+
+class DisplayBrand {
+  DisplayBrand.fromJson(Map<String, dynamic> j)
+      : id = j['id'],
+        name = j['name'],
+        image = j['image'],
+        banner = j['banner'];
+
+  final int id;
+  final String name;
+  final String image;
+  final String? banner;
+}

@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
 import { config } from './config.js';
-import { schema } from './schema.js';
+import { schema, columnMigrations } from './schema.js';
 
 export const pool = mysql.createPool({
   ...config.mysql,
@@ -41,11 +41,14 @@ export async function tx(fn) {
 
 export async function ensureSchema() {
   for (const stmt of schema) await pool.query(stmt);
+  for (const [table, column, ddl] of columnMigrations) {
+    const [rows] = await pool.query('SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?', [table, column]);
+    if (!rows.length) await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${ddl}`);
+  }
+
 }
 
-try {
-  await ensureSchema();
-} catch (e) {
-  console.error('MySQL is not reachable or not set up (' + e.message + '). Run: npm run db:setup');
+ensureSchema().catch((e) => {
+  console.error("MySQL is not reachable or not set up (" + e.message + "). Run: npm run db:setup");
   process.exit(1);
-}
+});

@@ -18,6 +18,18 @@ const mem = multer({
 
 export const oneImage = mem.single('image');
 export const manyImages = mem.array('images', 10);
+const imageAndBannerFields = mem.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'banner', maxCount: 1 },
+]);
+
+export const imageAndBanner = (req, res, next) =>
+  imageAndBannerFields(req, res, (err) => {
+    if (err) return next(err);
+    req.file = req.files?.image?.[0];
+    req.bannerFile = req.files?.banner?.[0];
+    next();
+  });
 
 export async function saveImage(buffer) {
   const name = `${randomUUID()}.webp`;

@@ -4,6 +4,7 @@ import '../state.dart';
 import '../theme.dart';
 import '../widgets/ui.dart';
 import 'address_screen.dart';
+import 'orders_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -73,7 +74,7 @@ class ProfileScreen extends StatelessWidget {
                         Text('My Orders', style: ts(15, w: FontWeight.w600)),
                         const Spacer(),
                         GestureDetector(
-                          onTap: () => comingSoon(context),
+                          onTap: () => OrdersScreen.open(context),
                           child: Text('View all orders  ›', style: ts(11, c: orange, d: TextDecoration.underline)),
                         ),
                       ],
@@ -85,10 +86,10 @@ class ProfileScreen extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _OrderTile(Icons.shopping_bag_outlined, 'All Orders', () => comingSoon(context)),
-                          _OrderTile(Icons.shopping_bag_outlined, 'Processing', () => comingSoon(context)),
-                          _OrderTile(Icons.delivery_dining_outlined, 'In Transit', () => comingSoon(context)),
-                          _OrderTile(Icons.check_circle_outline, 'Delivered', () => comingSoon(context)),
+                          _OrderTile(Icons.shopping_bag_outlined, 'All Orders', () => OrdersScreen.open(context)),
+                          _OrderTile(Icons.shopping_bag_outlined, 'Processing', () => OrdersScreen.open(context, filter: OrderFilter.processing)),
+                          _OrderTile(Icons.delivery_dining_outlined, 'In Transit', () => OrdersScreen.open(context, filter: OrderFilter.transit)),
+                          _OrderTile(Icons.check_circle_outline, 'Delivered', () => OrdersScreen.open(context, filter: OrderFilter.delivered)),
                         ],
                       ),
                     ),

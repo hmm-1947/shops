@@ -1,7 +1,7 @@
 import { h, toast, modal, field, thumb, badge, guard } from '../ui.js';
 import { api } from '../api.js';
 
-function taxonomyPage({ title, path, parent, discount }) {
+function taxonomyPage({ title, path, parent, discount, banner }) {
   return async function page(main) {
     const [rows, parents] = await Promise.all([api('GET', path), parent ? api('GET', parent.path) : []]);
     const reload = () => guard(() => page(main));
@@ -27,7 +27,10 @@ function taxonomyPage({ title, path, parent, discount }) {
       const sel = parent && h('select', { required: true }, parents.map((p) => h('option', { value: p.id, selected: p.id === row?.[parent.key] }, p.name)));
       const disc = discount && h('input', { type: 'number', min: 0, max: 100, step: '0.01', required: true, value: row?.discount ?? 0 });
       const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif,image/avif', required: !row });
+      const bannerFile = banner && h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif,image/avif' });
+      const dropBanner = banner && row?.banner && h('input', { type: 'checkbox' });
       const en = h('input', { type: 'checkbox', checked: row ? !!row.enabled : true });
+
       const form = h(
         'form',
         {
@@ -39,6 +42,9 @@ function taxonomyPage({ title, path, parent, discount }) {
             if (sel) fd.set(parent.key, sel.value);
             if (disc) fd.set('discount', disc.value);
             if (file.files[0]) fd.set('image', file.files[0]);
+            if (bannerFile?.files[0]) fd.set('banner', bannerFile.files[0]);
+            if (dropBanner?.checked && !bannerFile?.files[0]) fd.set('remove_banner', 'true');
+
             guard(async () => {
               await save(row, fd);
               close();
@@ -49,13 +55,17 @@ function taxonomyPage({ title, path, parent, discount }) {
         sel && field(parent.label, sel),
         disc && field('Discount %', disc, discount.hint),
         field('Image', file, row ? 'Leave empty to keep the current image. Converted to WebP automatically.' : 'Converted to WebP automatically.'),
+        banner && field('Banner (optional)', bannerFile, 'Wide image (about 16:7, e.g. 1600x700) shown at the top of the brand page in the app when this brand is the display brand.'),
+        banner && row?.banner && h('img', { class: 'banner-prev', src: row.banner, alt: 'Current banner' }),
+        dropBanner && h('label', { class: 'inline' }, dropBanner, 'Remove current banner'),
         h('label', { class: 'inline' }, en, 'Enabled'),
+
         h('div', { class: 'row end' }, h('button', { class: 'btn', type: 'submit' }, 'Save')),
       );
       const close = modal((row ? 'Edit ' : 'Add ') + title.toLowerCase(), form);
     }
 
-    const heads = ['Image', 'Name', parent && parent.label, discount && 'Discount', 'Status', ''].filter(Boolean);
+    const heads = ['Image', banner && 'Banner', 'Name', parent && parent.label, discount && 'Discount', 'Status', ''].filter(Boolean);
     main.replaceChildren(
       h('div', { class: 'head' }, h('h1', {}, title), h('button', { class: 'btn', onclick: () => edit() }, 'Add')),
       h(
@@ -70,6 +80,8 @@ function taxonomyPage({ title, path, parent, discount }) {
               'tr',
               {},
               h('td', {}, thumb(r.image, r.name)),
+              banner && h('td', {}, r.banner ? h('img', { class: 'thumb wide', src: r.banner, alt: r.name + ' banner', loading: 'lazy' }) : h('span', { class: 'hint' }, 'None')),
+
               h('td', {}, r.name),
               parent && h('td', {}, r[parent.nameKey]),
               discount && h('td', {}, r.discount + '%'),
@@ -85,4 +97,4 @@ function taxonomyPage({ title, path, parent, discount }) {
 
 export const categories = taxonomyPage({ title: 'Categories', path: '/categories', discount: { hint: 'Overrides the variant discount of every product in this category (a brand discount still wins).' } });
 export const subcategories = taxonomyPage({ title: 'Subcategories', path: '/subcategories', parent: { key: 'category_id', label: 'Category', path: '/categories', nameKey: 'category_name' } });
-export const brands = taxonomyPage({ title: 'Brands', path: '/brands', discount: { hint: 'Highest priority: overrides category and variant discounts.' } });
+export const brands = taxonomyPage({ title: 'Brands', path: '/brands', discount: { hint: 'Highest priority: overrides category and variant discounts.' }, banner: true });

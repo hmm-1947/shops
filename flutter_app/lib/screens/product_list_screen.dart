@@ -7,12 +7,14 @@ import '../theme.dart';
 import '../widgets/product_card.dart';
 
 class ProductListScreen extends StatefulWidget {
-  const ProductListScreen({super.key, required this.title, required this.loader, this.columns = 2, this.searchable = false, this.initialQuery});
+  const ProductListScreen({super.key, required this.title, required this.loader, this.columns = 2, this.searchable = false, this.initialQuery, this.header});
 
   final String title;
   final int columns;
   final bool searchable;
   final String? initialQuery;
+  final Widget? header;
+
   final Future<PageResult> Function(int page, String query) loader;
 
   static Route<void> forSubcategory(SubCategory s) => MaterialPageRoute(
@@ -102,27 +104,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
               )
             : Text(widget.title),
       ),
-      body: _items.isEmpty && !_loading
-          ? Center(
-              child: _failed
-                  ? TextButton(onPressed: _load, child: const Text('Could not load. Retry'))
-                  : const Text('No products found', style: TextStyle(color: muted)),
-            )
-          : GridView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(12),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: widget.columns,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: compact ? 0.55 : 0.72,
+      body: CustomScrollView(
+        controller: _scroll,
+        slivers: [
+          if (widget.header != null) SliverToBoxAdapter(child: widget.header),
+          if (_items.isEmpty && !_loading)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: _failed
+                    ? TextButton(onPressed: _load, child: const Text('Could not load. Retry'))
+                    : const Text('No products found', style: TextStyle(color: muted)),
               ),
-              itemCount: _items.length + (_loading || _failed ? 1 : 0),
-              itemBuilder: (_, i) {
-                if (i < _items.length) return ProductCard(_items[i], compact: compact);
-                return Center(child: _failed ? TextButton(onPressed: _load, child: const Text('Retry')) : const CircularProgressIndicator());
-              },
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.all(12),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: widget.columns,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: compact ? 0.55 : 0.72,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) {
+                    if (i < _items.length) return ProductCard(_items[i], compact: compact);
+                    return Center(child: _failed ? TextButton(onPressed: _load, child: const Text('Retry')) : const CircularProgressIndicator());
+                  },
+                  childCount: _items.length + (_loading || _failed ? 1 : 0),
+                ),
+              ),
             ),
+        ],
+      ),
     );
   }
 }

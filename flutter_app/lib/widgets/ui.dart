@@ -373,6 +373,8 @@ class BillSummary extends StatelessWidget {
             _row('Product discount', Text('-${rupees(cart.savings)}', style: ts(11, c: green))),
           ],
           _row('Item Total', Text(rupees(cart.total), style: ts(11, w: FontWeight.w500))),
+          for (final c in cart.appliedCharges)
+            _row(c.name, Text(rupees(c.amountFor(cart.total)), style: ts(11, w: FontWeight.w500))),
           _row(
             'Delivery Fee',
             cart.fee == 0

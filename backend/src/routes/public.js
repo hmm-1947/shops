@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { classQuery, listProducts, productDetail } from '../catalog.js';
 import { HttpError, pid } from '../errors.js';
+import { activeCharges } from '../delivery.js';
 
 const r = Router();
 const posInt = (v) => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
@@ -70,6 +71,15 @@ r.get('/products/:id', async (req, res) => {
   const p = await productDetail(pid(req.params.id));
   if (!p) throw new HttpError(404, 'Not found');
   res.json(p);
+});
+
+r.get('/charges', async (req, res) => res.json(await activeCharges()));
+
+r.get('/display-brand', async (req, res) => {
+  const row = await db
+    .prepare("SELECT b.id, b.name, b.image, b.banner FROM settings s JOIN brands b ON b.id = CAST(s.v AS UNSIGNED) WHERE s.k = 'display_brand_id' AND b.enabled = 1")
+    .get();
+  res.json(row ?? null);
 });
 
 r.get('/home', async (req, res) => {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'address_screen.dart';
 import '../api.dart';
 import '../models.dart';
@@ -29,6 +30,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _placing = false;
 
   String get _methodLabel => _methods.firstWhere((m) => m.$1 == _method).$2;
+  @override
+  void initState() {
+    super.initState();
+    cart.loadCharges();
+  }
+
+  Future<Position?> _locate() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return null;
+      return await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 12)));
+    } catch (_) {
+      try {
+        return await Geolocator.getLastKnownPosition();
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
 
   Future<void> _pay() async {
     if (cart.lines.isEmpty || _placing) return;
@@ -42,7 +65,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final via = _methodLabel;
     setState(() => _placing = true);
     try {
+      final pos = await _locate();
       await Api.placeOrder(
+        lat: pos?.latitude,
+        lng: pos?.longitude,
         items: [for (final l in cart.lines) (l.variant.id, l.qty)],
         method: _method,
         city: session.city,

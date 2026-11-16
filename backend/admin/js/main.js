@@ -1,4 +1,4 @@
-import { h, toast, icon } from './ui.js';
+import { h, toast, icon, themeToggle } from './ui.js';
 import { api } from './api.js';
 import login from './pages/login.js';
 import { products, productNew, productEdit } from './pages/products.js';
@@ -7,6 +7,9 @@ import mappings from './pages/mappings.js';
 import { carousels, carouselEdit } from './pages/carousels.js';
 import homeLayout from './pages/home.js';
 import orders from './pages/orders.js';
+import charges from './pages/charges.js';
+import warehouse from './pages/warehouse.js';
+import displayBrand from './pages/displayBrand.js';
 
 const routes = [
   [/^#\/products$/, products],
@@ -20,6 +23,9 @@ const routes = [
   [/^#\/carousels\/(\d+)$/, carouselEdit],
   [/^#\/home$/, homeLayout],
   [/^#\/orders(\?.*)?$/, orders],
+  [/^#\/charges$/, charges],
+  [/^#\/warehouse$/, warehouse],
+  [/^#\/display-brand$/, displayBrand],
 ];
 
 const links = [
@@ -31,6 +37,9 @@ const links = [
   ['#/mappings', 'Product mapping', 'mappings'],
   ['#/carousels', 'Carousels', 'carousels'],
   ['#/home', 'Home arrangement', 'home'],
+  ['#/charges', 'Charges & configurations', 'charges'],
+  ['#/warehouse', 'Warehouse location', 'warehouse'],
+  ['#/display-brand', 'Display brand', 'display'],
 ];
 
 const SIDE_KEY = 'wm_side_collapsed';
@@ -67,6 +76,8 @@ function shell(hash, main) {
       ),
       links.map(([href, label, ic]) => h('a', { href, title: label, class: hash.startsWith(href) ? 'active' : '' }, icon(ic), h('span', { class: 'lbl' }, label))),
       h('div', { class: 'spacer' }),
+      themeToggle(),
+
       h(
         'button',
         {
@@ -90,7 +101,12 @@ async function render() {
   const hash = location.hash || '#/orders';
   document.querySelectorAll('.overlay').forEach((o) => o.remove());
   const app = document.getElementById('app');
-  if (hash === '#/login') return login(app);
+  if (hash === '#/login') {
+    login(app);
+    app.append(themeToggle('theme-fab'));
+    return;
+  }
+
   try {
     await api('GET', '/auth/me');
   } catch {

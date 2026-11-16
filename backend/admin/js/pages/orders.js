@@ -1,5 +1,6 @@
 import { h, toast, modal, badge, guard, rupees } from '../ui.js';
 import { api } from '../api.js';
+import { mapLink } from './warehouse.js';
 
 const STATUSES = [
   ['placed', 'Placed'],
@@ -11,6 +12,10 @@ const STATUSES = [
 ];
 const label = (s) => STATUSES.find(([v]) => v === s)?.[1] ?? s;
 const when = (t) => new Date(t * 1000).toLocaleString();
+const MODES = { in_house: 'In-house delivery', courier: 'Courier delivery' };
+const mode = (m) => MODES[m] ?? 'Unknown';
+const km = (d) => (d == null ? '-' : d + ' km');
+const where = (o) => (o.latitude == null ? h('span', { class: 'hint' }, 'Not shared') : h('a', { href: mapLink(o.latitude, o.longitude), target: '_blank', rel: 'noopener noreferrer' }, Number(o.latitude).toFixed(5) + ', ' + Number(o.longitude).toFixed(5)));
 
 export default async function orders(main) {
   const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
@@ -37,7 +42,16 @@ export default async function orders(main) {
           o.items.map((i) => h('tr', {}, h('td', {}, [i.brand, i.product_name].filter(Boolean).join(' ')), h('td', {}, i.variant_name), h('td', {}, i.qty), h('td', {}, rupees(i.price)), h('td', {}, rupees(i.price * i.qty)))),
         ),
       ),
-      h('p', {}, 'Subtotal ' + rupees(o.subtotal) + ' / Delivery ' + rupees(o.delivery_fee) + ' / ', h('strong', {}, 'Total ' + rupees(o.total))),
+      h('p', {}, h('strong', {}, 'Customer location: '), where(o)),
+      h('p', {}, h('strong', {}, 'Distance from warehouse: '), km(o.distance_km), ' / ', mode(o.delivery_mode)),
+      h(
+        'p',
+        {},
+        'Subtotal ' + rupees(o.subtotal) + ' / Delivery ' + rupees(o.delivery_fee) + ' / ',
+        o.charges.map((c) => c.name + ' ' + rupees(c.amount) + ' / '),
+        h('strong', {}, 'Total ' + rupees(o.total)),
+      ),
+
       h(
         'div',
         { class: 'row end' },
@@ -72,7 +86,7 @@ export default async function orders(main) {
     h(
       'table',
       {},
-      h('thead', {}, h('tr', {}, ['#', 'Customer', 'City', 'Items', 'Total', 'Payment', 'Status', 'Placed', ''].map((t) => h('th', {}, t)))),
+      h('thead', {}, h('tr', {}, ['#', 'Customer', 'City', 'Location', 'Distance', 'Delivery', 'Items', 'Total', 'Payment', 'Status', 'Placed', ''].map((t) => h('th', {}, t)))),
       h(
         'tbody',
         {},
@@ -84,6 +98,9 @@ export default async function orders(main) {
                 h('td', {}, o.id),
                 h('td', {}, o.customer_name || o.customer_email),
                 h('td', {}, o.city),
+                h('td', {}, where(o)),
+                h('td', {}, km(o.distance_km)),
+                h('td', {}, mode(o.delivery_mode)),
                 h('td', {}, o.item_count),
                 h('td', {}, rupees(o.total)),
                 h('td', {}, o.payment_method.toUpperCase()),
@@ -92,7 +109,7 @@ export default async function orders(main) {
                 h('td', {}, h('button', { class: 'btn ghost sm', onclick: () => guard(() => view(o.id)) }, 'View')),
               ),
             )
-          : h('tr', {}, h('td', { colspan: 9 }, 'No orders yet')),
+          : h('tr', {}, h('td', { colspan: 12 }, 'No orders yet')),
       ),
     ),
     h('div', { class: 'row end' }, h('button', { class: 'btn ghost sm', disabled: page <= 1, onclick: () => go(status, page - 1) }, 'Previous'), h('span', { class: 'hint' }, 'Page ' + page + ' of ' + pages), h('button', { class: 'btn ghost sm', disabled: page >= pages, onclick: () => go(status, page + 1) }, 'Next')),

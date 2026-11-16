@@ -4,6 +4,7 @@ import { db, tx } from '../db.js';
 import { HttpError, parse, pid } from '../errors.js';
 import { requireCustomer } from '../firebase.js';
 import { discountFor, finalPrice } from '../pricing.js';
+import { activeCharges, applyCharges, getWarehouse, deliveryFor } from '../delivery.js';
 
 const FREE_DELIVERY_AT = 14900;
 const DELIVERY_FEE = 2500;
@@ -13,6 +14,7 @@ const schema = z.object({
   payment_method: z.enum(['upi', 'card', 'net', 'wallet', 'cod']),
   city: z.string().trim().max(60).default(''),
   phone: z.string().trim().max(20).default(''),
+  location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).nullish(),
   address: z.object({
     label: z.string().trim().max(30).default('Home'),
     name: z.string().trim().max(80).default(''),
@@ -43,12 +45,17 @@ r.post('/', async (req, res) => {
   }
   const subtotal = lines.reduce((a, l) => a + l.price * l.qty, 0);
   const fee = subtotal >= FREE_DELIVERY_AT ? 0 : DELIVERY_FEE;
+  const charged = applyCharges(await activeCharges(), subtotal);
+  const total = subtotal + fee + charged.total;
+  const loc = b.location ?? null;
+  const delivery = deliveryFor(await getWarehouse(), loc?.lat, loc?.lng);
   const id = await tx(async (c) => {
+
     const orderId = (
       await c
         .prepare(
-          `INSERT INTO orders(uid, customer_name, customer_email, phone, city, address, payment_method, subtotal, delivery_fee, total)
-           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO orders(uid, customer_name, customer_email, phone, city, address, payment_method, subtotal, delivery_fee, charges_total, charges, total, latitude, longitude, distance_km, delivery_mode)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           req.customer.uid,
@@ -60,7 +67,13 @@ r.post('/', async (req, res) => {
           b.payment_method,
           subtotal,
           fee,
-          subtotal + fee,
+          charged.total,
+          JSON.stringify(charged.lines),
+          total,
+          loc?.lat ?? null,
+          loc?.lng ?? null,
+          delivery.distance_km,
+          delivery.delivery_mode,
         )
     ).lastInsertRowid;
     for (const l of lines) {
@@ -73,17 +86,26 @@ r.post('/', async (req, res) => {
     }
     return orderId;
   });
-  res.status(201).json({ id, subtotal, delivery_fee: fee, total: subtotal + fee, status: 'placed' });
+  res.status(201).json({ id, subtotal, delivery_fee: fee, charges: charged.lines, charges_total: charged.total, total, delivery_mode: delivery.delivery_mode, status: 'placed' });
 });
 
 r.get('/', async (req, res) => {
-  res.json(await db.prepare('SELECT id, total, status, payment_method, created_at FROM orders WHERE uid = ? ORDER BY id DESC LIMIT 100').all(req.customer.uid));
+  const orders = await db
+    .prepare('SELECT id, subtotal, delivery_fee, charges_total, total, status, payment_method, created_at FROM orders WHERE uid = ? ORDER BY id DESC LIMIT 100')
+    .all(req.customer.uid);
+  const items = orders.length
+    ? await db
+        .prepare('SELECT order_id, product_name, brand, variant_name, image, price, qty FROM order_items WHERE order_id IN (?) ORDER BY id')
+        .all(orders.map((o) => o.id))
+    : [];
+  res.json(orders.map((o) => ({ ...o, items: items.filter((i) => i.order_id === o.id) })));
+
 });
 
 r.get('/:id', async (req, res) => {
   const o = await db.prepare('SELECT * FROM orders WHERE id = ? AND uid = ?').get(pid(req.params.id), req.customer.uid);
   if (!o) throw new HttpError(404, 'Not found');
-  res.json({ ...o, address: JSON.parse(o.address), items: await db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(o.id) });
+  res.json({ ...o, address: JSON.parse(o.address), charges: JSON.parse(o.charges), items: await db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(o.id) });
 });
 
 export default r;

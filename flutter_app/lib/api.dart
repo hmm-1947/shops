@@ -34,6 +34,25 @@ class Api {
 
   static Future<ProductDetail> product(int id) async => ProductDetail.fromJson(await _get('/products/$id'));
 
+  static Future<List<Charge>> charges() async => ((await _get('/charges')) as List).map((e) => Charge.fromJson(e)).toList();
+
+  static Future<DisplayBrand?> displayBrand() async {
+    final j = await _get('/display-brand');
+    return j == null ? null : DisplayBrand.fromJson(j);
+  }
+
+  static Future<dynamic> _authGet(String path) async {
+    final token = await AuthService.idToken();
+    if (token == null) throw Exception('Please sign in to view your orders');
+    final r = await _client.get(Uri.parse('$apiBase/api/v1$path'), headers: {'Authorization': 'Bearer $token'}).timeout(const Duration(seconds: 15));
+    if (r.statusCode != 200) throw Exception('Request failed (${r.statusCode})');
+    return jsonDecode(utf8.decode(r.bodyBytes));
+  }
+
+  static Future<List<Order>> orders() async => ((await _authGet('/orders')) as List).map((e) => Order.fromJson(e)).toList();
+
+  static Future<Order> order(int id) async => Order.fromJson(await _authGet('/orders/$id'));
+
   static Future<int> placeOrder({
     required List<(int, int)> items,
     required String method,
@@ -42,6 +61,8 @@ class Api {
     required String addressLabel,
     required String name,
     required List<String> addressLines,
+    double? lat,
+    double? lng,
   }) async {
     final token = await AuthService.idToken();
     if (token == null) throw Exception('Please sign in to place an order');
@@ -52,6 +73,7 @@ class Api {
           body: jsonEncode({
             'items': [for (final i in items) {'variant_id': i.$1, 'qty': i.$2}],
             'payment_method': method,
+            if (lat != null && lng != null) 'location': {'lat': lat, 'lng': lng},
             'city': city,
             'phone': phone,
             'address': {'label': addressLabel, 'name': name, 'lines': addressLines},

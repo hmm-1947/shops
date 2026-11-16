@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'state.dart';
 
 class AuthService {
   static bool ready = false;
+  static bool _gsiReady = false;
 
   static Future<void> init() async {
     try {
@@ -28,12 +30,19 @@ class AuthService {
 
   static Future<void> signInWithGoogle() async {
     if (!ready) throw Exception('Firebase is not configured yet. Add google-services.json and rebuild.');
-    final provider = GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
-    await FirebaseAuth.instance.signInWithProvider(provider);
+    final gsi = GoogleSignIn.instance;
+    if (!_gsiReady) {
+      await gsi.initialize(serverClientId: '152535738030-maq55sjrqlhsn6bfjd4h7dg1k0u1i36u.apps.googleusercontent.com');
+      _gsiReady = true;
+    }
+    final account = await gsi.authenticate();
+    final credential = GoogleAuthProvider.credential(idToken: account.authentication.idToken);
+    await FirebaseAuth.instance.signInWithCredential(credential);
   }
 
   static Future<void> signOut() async {
     if (ready) await FirebaseAuth.instance.signOut();
+    if (_gsiReady) await GoogleSignIn.instance.signOut().catchError((_) {});
     cartReset();
     session.clearAccount();
     session.clearAddress();
